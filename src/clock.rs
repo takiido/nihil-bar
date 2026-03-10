@@ -12,7 +12,7 @@ pub fn create_widget() -> Box{
 
 fn update_clock(label: &Label) {
     let now = glib::DateTime::now_local().unwrap();
-    let text = now.format("%-I:%M").unwrap();
+    let text = now.format("%-I:%M%p").unwrap();
     label.set_text(text.as_str());
 }
 
