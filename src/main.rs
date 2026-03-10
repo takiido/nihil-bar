@@ -38,8 +38,14 @@ fn add_widgets(window: &ApplicationWindow) {
     let clock = clock::create_widget();
     clock.set_parent(&wrapper);
 
-    let backlight = backlight::create_widget();
-    backlight.set_parent(&wrapper);
-    
+    /*
+     * Optional widgets.
+     * These widgets will be created based on the system shell is installed on
+     */
+    match backlight::create_widget() {
+        Ok(w) => w.set_parent(&wrapper),
+        Err(e) => eprintln!("Backlight widget is not supported on this system: {}", e),
+    }
+
     window.set_child(Some(&wrapper));
 }
