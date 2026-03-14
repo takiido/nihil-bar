@@ -3,8 +3,8 @@ use std::sync::OnceLock;
 use std::process::Command;
 use std::os::unix::io::AsRawFd;
 use udev::{MonitorBuilder};
+use gtk4::prelude::{RangeExt, WidgetExt};
 use gtk4::{Box as GtkBox, Label, Orientation, Scale};
-use gtk4::prelude::{FileChooserExt, RangeExt, WidgetExt};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BacklightError {
