@@ -2,7 +2,9 @@ mod clock;
 mod backlight;
 
 use gtk4::prelude::*;
+use gtk4::CssProvider;
 use gtk4::{Application, ApplicationWindow};
+use gtk4::gdk::Display;
 use gtk4_layer_shell::{Layer, LayerShell, Edge};
 
 fn main() {
@@ -11,7 +13,21 @@ fn main() {
         .build();
 
     app.connect_activate(create_window);
+    app.connect_startup(|_| load_css());
     app.run();
+}
+
+fn load_css() {
+    // Load the CSS file and add it to the provider
+    let provider = CssProvider::new();
+    provider.load_from_string(include_str!("style.css"));
+
+    // Add the provider to the default screen
+    gtk4::style_context_add_provider_for_display( 
+        &Display::default().expect("Could not connect to a display."),
+        &provider,
+        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
 }
 
 fn create_window(app: &Application) {

@@ -1,7 +1,10 @@
-use gtk4::{Box as GtkBox, Label, Orientation};
-use gtk4::prelude::{BoxExt};
 use std::fs;
 use std::sync::OnceLock;
+use std::process::Command;
+use std::os::unix::io::AsRawFd;
+use udev::{MonitorBuilder};
+use gtk4::{Box as GtkBox, Label, Orientation, Scale};
+use gtk4::prelude::{FileChooserExt, RangeExt, WidgetExt};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BacklightError {
@@ -11,6 +14,8 @@ pub enum BacklightError {
     Io(#[from] std::io::Error),
     #[error("parse error: {0}")]
     Parse(#[from] std::num::ParseIntError),
+    #[error("failed to set brightness")]
+    SetBrightness,
 }
 
 const BACKLIGHT: &str = "/sys/class/backlight/";
@@ -36,7 +41,22 @@ pub fn create_widget() -> Result<GtkBox, BacklightError> {
             "{}%", brightness
         )
     ));
-    container.append(&label);
+    label.set_parent(&container);
+    let slider = Scale::with_range(
+        Orientation::Horizontal,
+        0.0,
+        100.0,
+        1.0
+    );
+    slider.set_css_classes(&["slider"]);
+    slider.connect_value_changed(move |scale| {
+        let brightness = (scale.value()) as u32;
+        set_brightness(brightness).expect("Failed to set brightness");
+    });
+    slider.set_value(brightness as f64);
+    slider.set_parent(&container);
+
+    watch_brightness(label)?;
 
     Ok(container)
 }
@@ -75,4 +95,45 @@ fn get_brightness() -> Result<u32, BacklightError> {
     let current_brightness = get_current_brightness(device)?;
 
     Ok((current_brightness as f32 / max_brightness as f32 * 100.0).round() as u32)
+}
+
+fn watch_brightness(label: Label) -> Result<(), BacklightError> {
+    let monitor = MonitorBuilder::new()
+        .map_err(BacklightError::Io)?
+        .match_subsystem("backlight")
+        .map_err(BacklightError::Io)?
+        .listen()
+        .map_err(BacklightError::Io)?;
+
+    let fd = monitor.as_raw_fd();
+
+    glib::unix_fd_add_local(fd, glib::IOCondition::IN, move |_fd, _condition| {
+        for device in monitor.iter() {
+            if let Some(action) = device.action() {
+                if action == "change" {
+                    if let Ok(brightness) = get_brightness() {
+                        label.set_text(&format!("{}%", brightness));
+                    }
+                }
+            }
+        }
+        glib::ControlFlow::Continue
+    });
+
+    Ok(())
+}
+
+fn set_brightness(brightness: u32) -> Result<(), BacklightError> {
+    let level = format!("{}%", brightness);
+
+    let status = Command::new("brightnessctl")
+        .args(["set", &level])
+        .status()
+        .map_err(|_| BacklightError::SetBrightness)?;
+
+    if !status.success() {
+        return Err(BacklightError::SetBrightness);
+    }
+
+    Ok(())
 }
