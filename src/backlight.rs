@@ -126,12 +126,12 @@ fn watch_brightness(label: Label) -> Result<(), BacklightError> {
 fn set_brightness(brightness: u32) -> Result<(), BacklightError> {
     let level = format!("{}%", brightness);
 
-    let status = Command::new("brightnessctl")
+    let output = Command::new("brightnessctl")
         .args(["set", &level])
-        .status()
+        .output()
         .map_err(|_| BacklightError::SetBrightness)?;
 
-    if !status.success() {
+    if !output.status.success() {
         return Err(BacklightError::SetBrightness);
     }
 
