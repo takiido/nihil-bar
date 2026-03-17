@@ -1,7 +1,7 @@
 use gtk4::{glib, Box, Label, Orientation};
 use gtk4::prelude::WidgetExt;
 
-pub fn create_widget() -> Box{
+pub fn create_widget() -> Box {
     let container = Box::new(Orientation::Horizontal, 0);
     let label  = Label::new(None);
     label.set_parent(&container);
