@@ -1,5 +1,6 @@
 mod clock;
 mod backlight;
+mod volume;
 
 use gtk4::prelude::*;
 use gtk4::CssProvider;
@@ -61,6 +62,10 @@ fn add_widgets(window: &ApplicationWindow) {
     match backlight::create_widget() {
         Ok(w) => w.set_parent(&wrapper),
         Err(e) => eprintln!("Backlight widget is not supported on this system: {}", e),
+    }
+    match volume::create_widget() {
+        Ok(w) => w.set_parent(&wrapper),
+        Err(e) => eprintln!("Volume widget is not supported on this system: {}", e),
     }
 
     window.set_child(Some(&wrapper));
