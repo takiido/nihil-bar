@@ -78,11 +78,21 @@ use futures_util::StreamExt;
 #[proxy(
     interface = "org.nihil.Shell",
     default_service = "org.nihil.Shell",
-    default_path = "/org/nihil/Shell"
+    default_path = "/org/nihil/Shell",
+    gen_async = true
 )]
+
 trait NihilShell {
     #[zbus(signal)]
     fn dummy_updated(&self, value: u32) -> zbus::Result<()>;
+
+    // Backlight signals
+    #[zbus(signal)]
+    fn backlight_updated(&self, device: String, value: u32) -> zbus::Result<()>;
+    #[zbus(signal)]
+    fn backlight_device_added(&self, device: String) -> zbus::Result<()>;
+    #[zbus(signal)]
+    fn backlight_device_removed(&self, device: String) -> zbus::Result<()>;
 }
 
 #[tokio::main]
@@ -90,10 +100,29 @@ async fn main() {
     let conn = Connection::session().await.unwrap();
     let proxy = NihilShellProxy::new(&conn).await.unwrap();
 
-    let mut stream = proxy.receive_dummy_updated().await.unwrap();
+    let mut dummy_stream = proxy.receive_dummy_updated().await.unwrap();
+    let mut brightness_stream = proxy.receive_backlight_updated().await.unwrap();
+    let mut device_added_stream = proxy.receive_backlight_device_added().await.unwrap();
+    let mut device_removed_stream = proxy.receive_backlight_device_removed().await.unwrap();
 
-    while let Some(signal) = stream.next().await {
-        let value = signal.args().unwrap().value;
-        println!("Bar received: {value}");
+    loop {
+        tokio::select! {
+        Some(signal) = dummy_stream.next() => {
+            let value = signal.args().unwrap().value;
+            println!("Dummy: {value}");
+        }
+        Some(signal) = brightness_stream.next() => {
+            let args = signal.args().unwrap();
+            println!("Brightness: device={} value={}", args.device, args.value);
+        }
+        Some(signal) = device_added_stream.next() => {
+            let device = signal.args().unwrap().device;
+            println!("Device added: {device}");
+        }
+        Some(signal) = device_removed_stream.next() => {
+            let device = signal.args().unwrap().device;
+            println!("Device removed: {device}");
+        }
+        }
     }
 }
